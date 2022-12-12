@@ -5,5 +5,5 @@ cur = db.cursor()
 
 users = db.execute('select * from users').fetchall()
 for user in users:
-    print(user['telegram_uid'], user['nickname'], user['balance'], user['chat_state'])
+    print(user['telegram_uid'], user['nickname'], user['balance'], user['chat_state'], user['game_id'])
 db.close()

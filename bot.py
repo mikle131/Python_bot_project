@@ -1,4 +1,4 @@
-import game
+from game import Game
 import telebot
 from telebot import types
 import sqlite3
@@ -25,6 +25,28 @@ get_money = types.KeyboardButton("Получить бабки")
 account_markup.add(go_main)
 account_markup.add(get_money)
 
+# Кнопочки ставок
+bet_markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2, one_time_keyboard=True)
+st_150 = types.KeyboardButton("150💲")
+st_300 = types.KeyboardButton("300💲")
+st_500 = types.KeyboardButton("500💲")
+st_1000 = types.KeyboardButton("1000💲")
+go_main = types.KeyboardButton("Главное меню")
+bet_markup.add(st_150)
+bet_markup.add(st_300)
+bet_markup.add(st_500)
+bet_markup.add(st_1000)
+bet_markup.add(go_main)
+
+cancel_searching = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2, one_time_keyboard=True)
+canc = types.KeyboardButton("Отменить поиск")
+cancel_searching.add(canc)
+
+is_searching = dict()
+searching_users_id = {150: [], 300: [], 500: [], 1000: []}
+games = dict()
+game_id_counter = 1
+
 
 def account_stat(user, cur):
     cur.execute(f"select nickname from users where telegram_uid = {user}")
@@ -49,6 +71,11 @@ def connect_db():
     rv.row_factory = sqlite3.Row
     return rv
 
+# db = connect_db()
+# cur = db.cursor()
+# cur.execute("update users set game_id = 0")
+# db.commit()
+# db.close()
 
 @bot.message_handler(commands=['start'])
 def hello_message(message):
@@ -75,6 +102,7 @@ def hello_message(message):
 
 @bot.message_handler(content_types=['text'])
 def message_reply(message):
+    global game_id_counter
     db = connect_db()
     cur = db.cursor()
     cur.execute(f"select nickname from users where telegram_uid = {message.chat.id}")
@@ -94,8 +122,8 @@ def message_reply(message):
         cur.execute(f"select count(*) from users where telegram_uid = {message.chat.id}")
         num = cur.fetchone()[0]
         if num < 1:
-            cur.execute("insert into users (telegram_uid, nickname, balance, chat_state) values (?, ?, ?, ?)",
-                        (f'{message.chat.id}', f'', '500', -1)
+            cur.execute("insert into users (telegram_uid, nickname, balance, chat_state, game_id) values (?, ?, ?, ?, ?)",
+                        (f'{message.chat.id}', f'', 0, -1, 0)
                         )
             db.commit()
         bot.send_message(message.chat.id, 'Привет! Чтобы начать пользоваться ботом, введи команду /start',
@@ -114,26 +142,96 @@ def message_reply(message):
 
     elif message.text == 'Мой аккаунт':
         stat = account_stat(message.chat.id, cur)  # от юзера
-
         bot.send_message(message.chat.id, stat, reply_markup=account_markup)
 
     elif message.text == 'Главное меню':
         bot.send_message(message.chat.id, 'Перехожу в главное меню', reply_markup=main_menu_markup)
 
     elif message.text == 'Получить бабки':
-        if True:  # Баланс игрока не превышает какой то суммы
-            db = connect_db()
-            cur = db.cursor()
+        cur.execute(f"select balance from users where telegram_uid = {message.chat.id}")
+        bal = cur.fetchone()[0]
+        if bal < 150:  # Баланс игрока не превышает какой-то суммы
             cur.execute(f"update users set balance = balance + 300 where telegram_uid = {message.chat.id}")
             db.commit()
             bot.send_message(message.chat.id, 'Твой баланс пополнен на 300 коинов', reply_markup=account_markup)
         else:
-            bot.send_message(message.chat.id, 'Упс... Твой баланс не может быть пополнен, так как ',
+            bot.send_message(message.chat.id, 'Упс... Твой баланс не может быть пополнен, так как он выше 150 монет ☹️',
                              reply_markup=account_markup)
 
     elif message.text == 'Правила':
         bot.send_message(message.chat.id, rules, reply_markup=main_menu_markup)
 
+    elif message.text == 'Новая игра':
+        is_searching[message.chat.id] = 1
+        bot.send_message(message.chat.id, 'Выбери ставку', reply_markup=bet_markup)
+
+    elif message.text == '150💲' and is_searching.get(message.chat.id, False) == 1:
+        searching_users_id[150].append(message.chat.id)
+        is_searching[message.chat.id] = 150
+        bot.send_message(message.chat.id, 'Поиск игры', reply_markup=cancel_searching)
+        if len(searching_users_id[150]) >= 2:
+            id_1 = searching_users_id[150].pop()
+            id_2 = searching_users_id[150].pop()
+            g = Game(id_1, id_2, 150)
+            print(game_id_counter)
+            cur.execute(f"update users set game_id = {game_id_counter} where telegram_uid = {id_1}")
+            cur.execute(f"update users set game_id = {game_id_counter} where telegram_uid = {id_2}")
+            db.commit()
+            games[game_id_counter] = g
+            game_id_counter += 1
+
+    elif message.text == '300💲' and is_searching.get(message.chat.id, False) == 1:
+        searching_users_id[300].append(message.chat.id)
+        is_searching[message.chat.id] = 300
+        bot.send_message(message.chat.id, 'Поиск игры', reply_markup=cancel_searching)
+        if len(searching_users_id[300]) >= 2:
+            id_1 = searching_users_id[300].pop()
+            id_2 = searching_users_id[300].pop()
+            g = Game(id_1, id_2, 300)
+            cur.execute(f"update users set game_id = {game_id_counter} where telegram_uid = {id_1}")
+            cur.execute(f"update users set game_id = {game_id_counter} where telegram_uid = {id_2}")
+            db.commit()
+            games[game_id_counter] = g
+            game_id_counter += 1
+
+    elif message.text == '500💲' and is_searching.get(message.chat.id, False) == 1:
+        searching_users_id[500].append(message.chat.id)
+        is_searching[message.chat.id] = 500
+        bot.send_message(message.chat.id, 'Поиск игры', reply_markup=cancel_searching)
+        if len(searching_users_id[500]) >= 2:
+            id_1 = searching_users_id[500].pop()
+            id_2 = searching_users_id[500].pop()
+            g = Game(id_1, id_2, 500)
+            cur.execute(f"update users set game_id = {game_id_counter} where telegram_uid = {id_1}")
+            cur.execute(f"update users set game_id = {game_id_counter} where telegram_uid = {id_2}")
+            db.commit()
+            games[game_id_counter] = g
+            game_id_counter += 1
+
+    elif message.text == '1000💲' and is_searching.get(message.chat.id, False) == 1:
+        searching_users_id[1000].append(message.chat.id)
+        is_searching[message.chat.id] = 1000
+        bot.send_message(message.chat.id, 'Поиск игры', reply_markup=cancel_searching)
+        if len(searching_users_id[1000]) >= 2:
+            id_1 = searching_users_id[1000].pop()
+            id_2 = searching_users_id[1000].pop()
+            print(id_1, id_2)
+            g = Game(id_1, id_2, 1000)
+            cur.execute(f"update users set game_id = {game_id_counter} where telegram_uid = {id_1}")
+            cur.execute(f"update users set game_id = {game_id_counter} where telegram_uid = {id_2}")
+            db.commit()
+            games[game_id_counter] = g
+            game_id_counter += 1
+
+
+    elif message.text == 'Отменить поиск':
+        if is_searching.get(message.chat.id, False):
+            bet = is_searching[message.chat.id]
+            searching_users_id[bet].remove(message.chat.id)
+            is_searching[message.chat.id] = -1
+            bot.send_message(message.chat.id, 'Поиск отменен', reply_markup=main_menu_markup)
+        else:
+            bot.send_message(message.chat.id, 'Вы не в поиске', reply_markup=main_menu_markup)
     else:
         bot.send_message(message.chat.id,
                          'Упс, такая команда не найдена. Если хочешь поиграть, тапни по кнопочке "Новая игра"',
@@ -143,4 +241,9 @@ def message_reply(message):
 
 
 if __name__ == '__main__':
+    db = connect_db()
+    cur = db.cursor()
+    cur.execute("update users set game_id = 0")
+    db.commit()
+    db.close()
     bot.polling(none_stop=True, interval=0)
