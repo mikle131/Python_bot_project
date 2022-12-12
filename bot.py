@@ -54,9 +54,9 @@ def connect_db():
 def hello_message(message):
     db = connect_db()
     cur = db.cursor()
-    cur.execute(f"select count(*) from users where telegram_uid = {message.chat.id}")
-    num = cur.fetchone()[0]
-    if num == 1:
+    cur.execute(f"select nickname from users where telegram_uid = {message.chat.id}")
+    nn = cur.fetchone()[0]
+    if nn != '':
         bot.send_message(message.chat.id, 'Привет-привет! Ты уже зареган). Выбери то, что тебе надо', reply_markup = main_menu_markup)
     else:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2, one_time_keyboard=True)
@@ -64,7 +64,7 @@ def hello_message(message):
         bot.send_message(message.chat.id, first_message)
         question = 'Придумай свой игровой никнейм'
         bot.send_message(message.chat.id, question)
-        cur.execute("insert into users (chat_state) values (-1)")
+        cur.execute(f"update users set chat_state = -1 where telegram_uid = {message.chat.id}")
         db.commit()
     db.close()
 
@@ -72,24 +72,31 @@ def hello_message(message):
 def message_reply(message):
     db = connect_db()
     cur = db.cursor()
-    cur.execute(f"select chat_state from users where telegram_uid = {message.chat.id}")
-    state = cur.fetchone()[0]
     cur.execute(f"select count(*) from users where telegram_uid = {message.chat.id}")
     num = cur.fetchone()[0]
+    cur.execute(f"select chat_state from users where telegram_uid = {message.chat.id}")
+    t = cur.fetchone()
+    if t is None:
+        state = -1
+    else:
+        state = t[0]
     if num == 0:
         go_start = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2, one_time_keyboard=True)
         start = types.KeyboardButton("/start")
         go_start.add(start)
+        cur.execute("insert into users (telegram_uid, nickname, balance, chat_state) values (?, ?, ?, ?)",
+                    (f'{message.chat.id}', f'', '500', -1)
+                    )
+        db.commit()
         bot.send_message(message.chat.id, 'Привет! Чтобы начать пользоваться ботом, введи команду /start', reply_markup = go_start)
 
     elif state == -1:
         nn = message.text
         enter_nick[message.chat.id] = 1  # легаси
-        registered_users.append(message.chat.id)
+        registered_users.append(message.chat.id)  # легаси
         # добавляем игрока в бд
-        cur.execute("insert into users (telegram_uid, nickname, balance, chat_state) values (?, ?, ?, ?)",
-                    (f'{message.chat.id}', f'{nn}', '500', 1)
-                    )
+        cur.execute(f"update users set nickname = '{nn}' where telegram_uid = {message.chat.id}")
+        cur.execute(f"update users set chat_state = 1 where telegram_uid = {message.chat.id}")
         db.commit()
         bot.send_message(message.chat.id, 'Поздравляю, ты зарегистрировался! Ты в главном меню', reply_markup = main_menu_markup)
 
