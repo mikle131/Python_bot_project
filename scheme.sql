@@ -5,5 +5,7 @@ create table users (
     nickname text not null,
     balance int not null,
     chat_state int not null,
-    game_id int not null
+    game_id int not null,
+    games_num int not null,
+    wins_num int not null
 );

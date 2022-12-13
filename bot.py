@@ -2,6 +2,7 @@ from game import Game
 import telebot
 from telebot import types
 import sqlite3
+from decimal import *
 
 TOKEN = '5461356135:AAGR6NZs0TX7HM7t_1wdEq6b8vXPmnP3dAs'
 bot = telebot.TeleBot(TOKEN)
@@ -71,14 +72,25 @@ game_id_counter = 1
 
 
 def account_stat(user, cur):
+    getcontext().prec = 4
     cur.execute(f"select nickname from users where telegram_uid = {user}")
     nn = cur.fetchone()[0]
     cur.execute(f"select balance from users where telegram_uid = {user}")
     balance = cur.fetchone()[0]
+    cur.execute(f"select games_num from users where telegram_uid = {user}")
+    games_num = cur.fetchone()[0]
+    cur.execute(f"select wins_num from users where telegram_uid = {user}")
+    wins_num = cur.fetchone()[0]
+
+    if games_num == 0:
+        w_l = "N/A"
+    else:
+        w_l = str(Decimal(wins_num) / Decimal(games_num) * 100) + '%'
+
     message = f"""
 Ник: {nn}
-Количество игр:
-Процент побед:
+Количество игр: {games_num}
+Процент побед: {w_l}
 Баланс: {balance}
     """
     return message
@@ -113,6 +125,14 @@ def hello_message(message):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True,
                                            row_width=2,
                                            one_time_keyboard=True)
+        cur.execute(
+            f"select count(*) from users where telegram_uid = {message.chat.id}")
+        num = cur.fetchone()[0]
+        if num < 1:
+            cur.execute(
+                "insert into users (telegram_uid, nickname, balance, chat_state, game_id, games_num, wins_num) values (?, ?, ?, ?, ?, ?, ?)",
+                (f'{message.chat.id}', f'', 0, -1, 0, 0, 0))
+            db.commit()
         first_message = 'Привет, ' + message.from_user.username + '!👋🏼' + 2 * '\n' + 'Перед тем как начать, пожалуйста, зарегистрируйся. Это быстро📝'
         bot.send_message(message.chat.id, first_message)
         question = 'Придумай свой игровой никнейм'
@@ -202,8 +222,8 @@ def message_reply(message):
         num = cur.fetchone()[0]
         if num < 1:
             cur.execute(
-                "insert into users (telegram_uid, nickname, balance, chat_state, game_id) values (?, ?, ?, ?, ?)",
-                (f'{message.chat.id}', f'', 0, -1, 0))
+                "insert into users (telegram_uid, nickname, balance, chat_state, game_id, games_num, wins_num) values (?, ?, ?, ?, ?, ?, ?)",
+                (f'{message.chat.id}', f'', 0, -1, 0, 0, 0))
             db.commit()
         bot.send_message(
             message.chat.id,
@@ -237,6 +257,9 @@ def message_reply(message):
             bot.send_message(loser, f'Вы проиграли. Со счёта списано {game.bet} монет', reply_markup=main_menu_markup)
             # cur.execute(f"select balance from users where telegram_uid = {loser}")
             cur.execute(f"update users set balance = balance - {game.bet} where telegram_uid = {loser}")
+            cur.execute(f"update users set games_num = games_num + 1 where telegram_uid = {loser}")
+            cur.execute(f"update users set games_num = games_num + 1 where telegram_uid = {winner}")
+            cur.execute(f"update users set wins_num = wins_num + 1 where telegram_uid = {winner}")
             bot.send_message(winner, f'Противник сдался. Вы победили! На счет начислено {game.bet} монет', reply_markup=main_menu_markup)
             cur.execute(f"update users set balance = balance + {game.bet} where telegram_uid = {winner}")
             cur.execute(f"update users set game_id = 0 where telegram_uid = {winner}")
@@ -268,7 +291,7 @@ def message_reply(message):
         else:
             bot.send_message(
                 message.chat.id,
-                'Упс... Твой баланс не может быть пополнен, так как он выше 150 монет ☹️',
+                'Упс... Твой баланс не может быть пополнен, так как он выше 149 монет ☹️',
                 reply_markup=account_markup)
 
     elif message.text == 'Правила':
