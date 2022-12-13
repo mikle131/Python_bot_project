@@ -54,7 +54,7 @@ first_player_markup.add(heat)
 first_player_markup.add(stay)
 first_player_markup.add(give_up)
 
-# кнопки для ходящего игрока
+# кнопки для ждущего игрока
 give_up = types.KeyboardButton("Сдаться")
 second_player_markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 second_player_markup.add(give_up)
@@ -190,9 +190,9 @@ def message_reply(message):
                              'Поиск игры',
                              reply_markup=cancel_searching)
         if len(searching_users_id[bet]) >= 2:
-            id_1 = searching_users_id[bet].pop()
             id_2 = searching_users_id[bet].pop()
-            g = Game(id_1, id_2, bet)
+            id_1 = searching_users_id[bet].pop()
+            game = Game(id_1, id_2, bet)
             cur.execute(
                 f"update users set game_id = {game_id_counter} where telegram_uid = {id_1}"
             )
@@ -205,10 +205,17 @@ def message_reply(message):
             cur.execute(f"select nickname from users where telegram_uid={id_2}")
             nn_2 = cur.fetchone()[0]
             bot.send_message(id_1, f'Игра найдена. Ваш противник: {nn_2}')
-            bot.send_message(id_1, f'Ваш ход', reply_markup=first_player_markup)
+            bot.send_message(game.turn_id, f'Ваш ход', reply_markup=first_player_markup)
             bot.send_message(id_2, f'Игра найдена. Ваш противник: {nn_1}')
-            bot.send_message(id_2, f'Ход противника', reply_markup=second_player_markup)
-            games[game_id_counter] = g
+            bot.send_message(game.not_turn_id, f'Ход противника', reply_markup=second_player_markup)
+            game.start_newround(id_1)
+            #И вот тут мы юзаем написанную функцию, чтобы сгенерить текст, а потом отпраляем сообщение кажжлому игроку
+            msg_cur = game.get_current_hand(game.turn_id)
+            msg_not_cur = game.get_current_hand(game.not_turn_id)
+            bot.send_message(game.turn_id, msg_cur, reply_markup=first_player_markup, parse_mode='Markdown')
+            bot.send_message(game.not_turn_id, msg_not_cur, reply_markup=second_player_markup, parse_mode='Markdown')
+
+            games[game_id_counter] = game
             game_id_counter += 1
 
     if nn == '' and state == -1:
@@ -246,7 +253,7 @@ def message_reply(message):
                          'Поздравляю, ты зарегистрировался! Ты в главном меню',
                          reply_markup=main_menu_markup)
 
-    elif (player_game_id != 0):
+    elif (player_game_id != 0):  # логика во время игры
         game = games[player_game_id]
         if message.text == 'Сдаться':
             loser = message.chat.id
@@ -260,11 +267,16 @@ def message_reply(message):
             cur.execute(f"update users set games_num = games_num + 1 where telegram_uid = {loser}")
             cur.execute(f"update users set games_num = games_num + 1 where telegram_uid = {winner}")
             cur.execute(f"update users set wins_num = wins_num + 1 where telegram_uid = {winner}")
-            bot.send_message(winner, f'Противник сдался. Вы победили! На счет начислено {game.bet} монет', reply_markup=main_menu_markup)
+            bot.send_message(winner, f'Противник сдался. Вы победили! На счет начислено {game.bet} монет',
+                             reply_markup=main_menu_markup)
             cur.execute(f"update users set balance = balance + {game.bet} where telegram_uid = {winner}")
             cur.execute(f"update users set game_id = 0 where telegram_uid = {winner}")
             cur.execute(f"update users set game_id = 0 where telegram_uid = {loser}")
             db.commit()
+        elif message.chat.id == game.turn_id:  # функционал игрока который ходит
+            pass
+        else:
+            pass
 
 
     elif message.text == 'Мой аккаунт':
