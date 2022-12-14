@@ -12,6 +12,7 @@ class Game:
     stay_counter : int
     is_correct : bool
     prices = {2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 'J': 10, 'Q': 10, 'K': 10, 'A': 11}
+    is_bj : bool
 
     def __init__(self, user_1, user_2, bet):
         self._deck = [(i, mast) for i in range(2, 11) for mast in ['♥️', '♠️', '♦️', '♣️']]  # циферки
@@ -20,12 +21,14 @@ class Game:
         self.user_1 = user_1
         self.user_2 = user_2
         self.bet = bet
-        self.players = {user_1: {'hand': [], 'points': 0, 'wins': 0}, user_2: {'hand': [], 'points': 0, 'wins': 0}}
+        self.players = {user_1: {'hand': [], 'raw_points' : 0, 'points': 0, 'wins': 0, 'a': 0}, user_2: {'hand': [], 'raw_points' : 0, 'points': 0, 'wins': 0, 'a': 0}}
         self.turn_id = user_1
         self.not_turn_id = user_2
         self.stay_counter = 1
         self.is_first_action = True
         self.is_correct = True
+        self.a_counter = 0
+        self.is_bj = False
 
     def start_newround(self, turn_id):
         shuffle(self._deck)
@@ -39,13 +42,12 @@ class Game:
         """Имитация взятия карты из колоды"""
         self.is_first_action = False
         card = self._deck.pop()
+        self.players[turn_id]['raw_points'] += self.prices[card[0]]
+        self.players[turn_id]['points'] += self.prices[card[0]]
         if card[0] == 'A':
-            if self.players[turn_id]['points'] + self.prices[card[0]] <= 21:
-                self.players[turn_id]['points'] += self.prices[card[0]]
-            else:
-                self.players[turn_id]['points'] += 1
-        else:
-            self.players[turn_id]['points'] += self.prices[card[0]]
+            self.players[turn_id]['a'] += 1
+        if self.players[turn_id]['raw_points'] > 21:
+            self.players[turn_id]['points'] = self.players[turn_id]['raw_points'] - self.players[turn_id]['a'] * 10
         self.players[turn_id]['hand'].append(card)
         self.is_correct_checker(turn_id)
         return 0
@@ -54,6 +56,8 @@ class Game:
         """Проверка, не превысила ли сумма 21"""
         if self.players[turn_id]['points']  > 21:
             self.is_correct = False
+        elif self.players[turn_id]['points'] == 21:
+            self.is_bj = True
         return 1
 
     def stay(self):

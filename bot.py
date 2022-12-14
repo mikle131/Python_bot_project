@@ -136,7 +136,7 @@ def hello_message(message):
         if num < 1:
             cur.execute(
                 "insert into users (telegram_uid, nickname, balance, chat_state, game_id, games_num, wins_num) values (?, ?, ?, ?, ?, ?, ?)",
-                (f'{message.chat.id}', f'', 0, -1, 0, 0, 0))
+                (f'{message.chat.id}', f'', 1500, -1, -1, 0, 0))
             db.commit()
         first_message = 'Привет, ' + message.from_user.username + '!👋🏼' + 2 * '\n' + 'Перед тем как начать, пожалуйста, зарегистрируйся. Это быстро📝'
         bot.send_message(message.chat.id, first_message)
@@ -294,7 +294,7 @@ def message_reply(message):
                     cur.execute(f"update users set wins_num = wins_num + 1 where telegram_uid = {winner}")
                     bot.send_message(winner, f'Противник перебрал. Вы победили! На счет начислено {game.bet} монет',
                                      reply_markup=main_menu_markup)
-                    bot.send_message(loser, f'Поеребор. Вы проиграли! Со счета списано {game.bet} монет',
+                    bot.send_message(loser, f'Перебор. Вы проиграли! Со счета списано {game.bet} монет',
                                      reply_markup=main_menu_markup)
                     cur.execute(f"update users set balance = balance + {game.bet} where telegram_uid = {winner}")
                     cur.execute(f"update users set game_id = -1 where telegram_uid = {winner}")
@@ -341,9 +341,14 @@ def message_reply(message):
         offline_games[message.chat.id] = game
         game.start_newround(message.chat.id)
         msg_cur = game.get_current_hand(game.turn_id)
-        bot.send_message(game.turn_id, msg_cur, reply_markup=first_player_markup, parse_mode='Markdown')
+        if game.players[message.chat.id]['points'] == 21:
+            bot.send_message(game.turn_id, msg_cur, parse_mode='Markdown')
+            bot.send_message(game.turn_id, "*Блэкджек!* Вы выиграли!", reply_markup=main_menu_markup, parse_mode='Markdown')
+            cur.execute(f"update users set game_id = -1 where telegram_uid = {message.chat.id}")
+        else:
+            bot.send_message(game.turn_id, msg_cur, reply_markup=first_player_markup, parse_mode='Markdown')
 
-    elif player_game_id == 0:
+    elif player_game_id == 0:  # оффлайн логика
         game = offline_games[message.chat.id]
         if message.text == 'Сдаться':
             loser = message.chat.id
@@ -360,15 +365,17 @@ def message_reply(message):
                                 reply_markup=main_menu_markup)
                 cur.execute(f"update users set game_id = -1 where telegram_uid = {message.chat.id}")
                 db.commit()
+            elif game.is_bj:
+                bot.send_message(message.chat.id, "*Блэкджек!* Вы выиграли!", reply_markup=main_menu_markup, parse_mode='Markdown')
+                cur.execute(f"update users set game_id = -1 where telegram_uid = {message.chat.id}")
+                db.commit()
 
-        if message.text == 'Пас':
+        elif message.text == 'Пас':
             if game.stay_counter == 1:
                 overflow = False
                 game.stay()
                 bot.send_message(game.not_turn_id, f'Ход соперника', reply_markup=second_player_markup)
                 while game.players[0]['points'] < 16:
-                    print('aaa')
-                    time.sleep(1)
                     game.hit(0)
                     mess_1 = game.get_current_hand(game.not_turn_id)
                     bot.send_message(message.chat.id, mess_1, reply_markup=second_player_markup, parse_mode='Markdown')
@@ -377,6 +384,8 @@ def message_reply(message):
                         bot.send_message(message.chat.id, "Противник перебрал. Вы победили!", reply_markup=main_menu_markup)
                         cur.execute(f"update users set game_id = -1 where telegram_uid = {message.chat.id}")
                         db.commit()
+                    elif game.players[0]['points'] < 16:
+                        time.sleep(0.9)
                 if not overflow:
                     winner = game.not_turn_id
                     loser = game.turn_id
@@ -385,10 +394,10 @@ def message_reply(message):
                         loser = game.not_turn_id
                     if game.players[game.turn_id]['points'] != game.players[game.not_turn_id]['points']:
                         if loser == 0:
-                            bot.send_message(winner, f'Вы победили!',
+                            bot.send_message(winner, f'Вы набрали больше очков. Вы победили!',
                                             reply_markup=main_menu_markup)
                         else:
-                            bot.send_message(loser, f'Вы проиграли!',
+                            bot.send_message(loser, f'Противник набрал больше очков. Вы проиграли!',
                                             reply_markup=main_menu_markup)
                     else:
                         bot.send_message(message.chat.id, f'Ничья!',
