@@ -209,7 +209,7 @@ def message_reply(message):
             bot.send_message(id_2, f'Игра найдена. Ваш противник: {nn_1}')
             bot.send_message(game.not_turn_id, f'Ход противника', reply_markup=second_player_markup)
             game.start_newround(id_1)
-            #И вот тут мы юзаем написанную функцию, чтобы сгенерить текст, а потом отпраляем сообщение кажжлому игроку
+            #И вот тут мы юзаем написанную функцию, чтобы сгенерить текст, а потом отпраляем сообщение каждому игроку
             msg_cur = game.get_current_hand(game.turn_id)
             msg_not_cur = game.get_current_hand(game.not_turn_id)
             bot.send_message(game.turn_id, msg_cur, reply_markup=first_player_markup, parse_mode='Markdown')
@@ -262,7 +262,6 @@ def message_reply(message):
             else:
                 winner = game.user_1
             bot.send_message(loser, f'Вы проиграли. Со счёта списано {game.bet} монет', reply_markup=main_menu_markup)
-            # cur.execute(f"select balance from users where telegram_uid = {loser}")
             cur.execute(f"update users set balance = balance - {game.bet} where telegram_uid = {loser}")
             cur.execute(f"update users set games_num = games_num + 1 where telegram_uid = {loser}")
             cur.execute(f"update users set games_num = games_num + 1 where telegram_uid = {winner}")
@@ -274,7 +273,57 @@ def message_reply(message):
             cur.execute(f"update users set game_id = 0 where telegram_uid = {loser}")
             db.commit()
         elif message.chat.id == game.turn_id:  # функционал игрока который ходит
-            pass
+            if message.text == 'Взять':
+                game.hit(message.chat.id)
+                mess_1 = game.get_current_hand(game.turn_id)
+                mess_2 = game.get_current_hand(game.not_turn_id)
+                bot.send_message(game.turn_id, mess_1, reply_markup=first_player_markup, parse_mode='Markdown')
+                bot.send_message(game.not_turn_id, mess_2, reply_markup=second_player_markup, parse_mode='Markdown')
+                if not game.is_correct:
+                    loser = game.turn_id
+                    winner = game.not_turn_id
+                    cur.execute(f"update users set balance = balance - {game.bet} where telegram_uid = {loser}")
+                    cur.execute(f"update users set games_num = games_num + 1 where telegram_uid = {loser}")
+                    cur.execute(f"update users set games_num = games_num + 1 where telegram_uid = {winner}")
+                    cur.execute(f"update users set wins_num = wins_num + 1 where telegram_uid = {winner}")
+                    bot.send_message(winner, f'Противник перебрал. Вы победили! На счет начислено {game.bet} монет',
+                                    reply_markup=main_menu_markup)
+                    bot.send_message(loser, f'Вы проиграли! Со счета списано {game.bet} монет',
+                                    reply_markup=main_menu_markup)
+                    cur.execute(f"update users set balance = balance + {game.bet} where telegram_uid = {winner}")
+                    cur.execute(f"update users set game_id = 0 where telegram_uid = {winner}")
+                    cur.execute(f"update users set game_id = 0 where telegram_uid = {loser}")
+                    db.commit()
+            if message.text == 'Пас':
+                if game.stay_counter == 1:
+                    game.stay()
+                    bot.send_message(game.turn_id , f'Ваша очередь ходить', reply_markup=first_player_markup)
+                    bot.send_message(game.not_turn_id, f'Ход соперника', reply_markup = second_player_markup)
+                else:
+                    winner = game.not_turn_id
+                    loser = game.turn_id
+                    if game.players[game.turn_id]['points'] > game.players[game.not_turn_id]['points']:
+                        winner = game.turn_id
+                        loser = game.not_turn_id
+                    if game.players[game.turn_id]['points'] != game.players[game.not_turn_id]['points']:
+                        cur.execute(f"update users set balance = balance - {game.bet} where telegram_uid = {loser}")
+                        cur.execute(f"update users set games_num = games_num + 1 where telegram_uid = {loser}")
+                        cur.execute(f"update users set games_num = games_num + 1 where telegram_uid = {winner}")
+                        cur.execute(f"update users set wins_num = wins_num + 1 where telegram_uid = {winner}")
+                        bot.send_message(winner, f'Противник перебрал. Вы победили! На счет начислено {game.bet} монет',
+                                        reply_markup=main_menu_markup)
+                        bot.send_message(loser, f'Вы проиграли! Со счета списано {game.bet} монет',
+                                        reply_markup=main_menu_markup)
+                    else:
+                        bot.send_message(winner, f'Ничья!',
+                                        reply_markup=main_menu_markup)
+                        bot.send_message(loser, f'Ничья!',
+                                        reply_markup=main_menu_markup)
+                    cur.execute(f"update users set balance = balance + {game.bet} where telegram_uid = {winner}")
+                    cur.execute(f"update users set game_id = 0 where telegram_uid = {winner}")
+                    cur.execute(f"update users set game_id = 0 where telegram_uid = {loser}")
+                    db.commit()
+                
         else:
             pass
 

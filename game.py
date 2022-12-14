@@ -3,9 +3,6 @@ from random import shuffle
 
 
 class Game:
-    # _deck = [(i, mast) for i in range(2, 11) for mast in ['H', 'S', 'D', 'C']]  # циферки
-    # _deck += [(val, mast) for mast in ['H', 'S', 'D', 'C'] for val in ['J', 'Q', 'K']]  # картинки
-    # _deck += [('A', mast) for mast in ['H', 'S', 'D', 'C']]  # тузы
     user_1: int
     user_2: int
     turn_id: int
@@ -13,6 +10,7 @@ class Game:
     bet: int
     is_first_action: bool
     stay_counter : int
+    is_correct : bool
     prices = {2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 'J': 10, 'Q': 10, 'K': 10, 'A': 11}
 
     def __init__(self, user_1, user_2, bet):
@@ -27,6 +25,7 @@ class Game:
         self.not_turn_id = user_2
         self.stay_counter = 1
         self.is_first_action = True
+        self.is_correct = True
 
     def start_newround(self, turn_id):
         shuffle(self._deck)
@@ -48,15 +47,19 @@ class Game:
         else:
             self.players[turn_id]['points'] += self.prices[card[0]]
         self.players[turn_id]['hand'].append(card)
-        return self.players[turn_id]['points']
+        self.is_correct_checker(turn_id)
+        return 0
+
+    def is_correct_checker(self, turn_id):
+        """Проверка, не превысила ли сумма 21"""
+        if self.players[turn_id]['points']  > 21:
+            self.is_correct = False
+        return 1
 
     def stay(self):
-        self.is_first_action = True
         self.turn_id, self.not_turn_id = self.not_turn_id, self.turn_id
-        self.hit(self.turn_id)
-        self.hit(self.turn_id)
         self.stay_counter += 1
-        return self.turn_id
+        return 1
 
     def get_current_hand(self, id):
         msg = f"Ваша рука: *{self.players[id]['points']}*\n\n"
