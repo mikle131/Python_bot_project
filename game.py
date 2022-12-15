@@ -1,5 +1,6 @@
 from typing import List, Dict
 from random import shuffle
+import datetime
 
 
 class Game:
@@ -13,6 +14,7 @@ class Game:
     is_correct : bool
     prices = {2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 'J': 10, 'Q': 10, 'K': 10, 'A': 11}
     is_bj : bool
+    last_action_time : int
 
     def __init__(self, user_1, user_2, bet):
         self._deck = [(i, mast) for i in range(2, 11) for mast in ['♥️', '♠️', '♦️', '♣️']]  # циферки
@@ -36,6 +38,7 @@ class Game:
         self.hit(turn_id)
         self.hit(self.not_turn_id)
         self.is_first_action = True
+        self.last_action_time = (datetime.datetime.now() - datetime.datetime(1, 1, 1, 0, 0)).total_seconds()
         return self._deck
 
     def hit(self, turn_id):
@@ -50,6 +53,7 @@ class Game:
             self.players[turn_id]['points'] = self.players[turn_id]['raw_points'] - self.players[turn_id]['a'] * 10
         self.players[turn_id]['hand'].append(card)
         self.is_correct_checker(turn_id)
+        self.last_action_time = (datetime.datetime.now() - datetime.datetime(1, 1, 1, 0, 0)).total_seconds()
         return 0
 
     def is_correct_checker(self, turn_id):
@@ -63,6 +67,7 @@ class Game:
     def stay(self):
         self.turn_id, self.not_turn_id = self.not_turn_id, self.turn_id
         self.stay_counter += 1
+        self.last_action_time = (datetime.datetime.now() - datetime.datetime(1, 1, 1, 0, 0)).total_seconds()
         return 1
 
     def get_current_hand(self, id):

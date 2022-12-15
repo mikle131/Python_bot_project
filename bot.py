@@ -1,4 +1,4 @@
-import time
+import datetime
 
 from game import Game
 import telebot
@@ -60,8 +60,10 @@ first_player_markup.add(give_up)
 
 # кнопки для ждущего игрока
 give_up = types.KeyboardButton("Сдаться")
+afk = types.KeyboardButton("Соперник встал АФК")
 second_player_markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 second_player_markup.add(give_up)
+second_player_markup.add(afk)
 
 cancel_searching = types.ReplyKeyboardMarkup(resize_keyboard=True,
                                              row_width=2,
@@ -330,8 +332,27 @@ def message_reply(message):
                     cur.execute(f"update users set game_id = -1 where telegram_uid = {loser}")
                     db.commit()
 
-        else:
-            pass
+        else: #Функционал игрока который ждет
+            if message.text == 'Соперник встал АФК':
+                curr_time = (datetime.datetime.now() - datetime.datetime(1, 1, 1, 0, 0)).total_seconds()
+                if curr_time - game.last_action_time >= 30:
+                    winner = game.not_turn_id
+                    loser = game.turn_id
+                    cur.execute(f"update users set balance = balance - {game.bet // 2} where telegram_uid = {loser}")
+                    cur.execute(f"update users set games_num = games_num + 1 where telegram_uid = {loser}")
+                    cur.execute(f"update users set games_num = games_num + 1 where telegram_uid = {winner}")
+                    cur.execute(f"update users set wins_num = wins_num + 1 where telegram_uid = {winner}")
+                    bot.send_message(winner, f'Вы победили! На счет начислено {game.bet // 2} монет',
+                                        reply_markup=main_menu_markup)
+                    bot.send_message(loser, f'Вы проиграли! Нехорошо вставать АФК. С вас списано {game.bet // 2} монет в качестве штрафа',
+                                        reply_markup=main_menu_markup)
+                    cur.execute(f"update users set balance = balance + {game.bet // 2} where telegram_uid = {winner}")
+                    cur.execute(f"update users set game_id = -1 where telegram_uid = {winner}")
+                    cur.execute(f"update users set game_id = -1 where telegram_uid = {loser}")
+                    db.commit()
+                else:
+                    bot.send_message(message.chat.id, f'Подождите, пожалуйста. У соперника есть еще {30 - int(curr_time - game.last_action_time)} секунд, чтобы походить.',
+                                        reply_markup=second_player_markup)
 
     elif message.text == "Играть с ботом":
         cur.execute(f"update users set game_id = 0 where telegram_uid = {message.chat.id}")
@@ -375,7 +396,8 @@ def message_reply(message):
                 overflow = False
                 game.stay()
                 bot.send_message(game.not_turn_id, f'Ход соперника', reply_markup=second_player_markup)
-                while game.players[0]['points'] < 16:
+                while game.players[0]['points'] < game.players[message.chat.id]['points']:
+                    '''он ходит первым. Набирает, пока у противника больше. Иначе -- гарантированно пройгрыш.'''
                     game.hit(0)
                     mess_1 = game.get_current_hand(game.not_turn_id)
                     bot.send_message(message.chat.id, mess_1, reply_markup=second_player_markup, parse_mode='Markdown')
