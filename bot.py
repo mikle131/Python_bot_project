@@ -16,10 +16,10 @@ enter_nick = dict()  # легаси
 main_menu_markup = types.ReplyKeyboardMarkup(resize_keyboard=True,
                                              row_width=2,
                                              one_time_keyboard=True)
-my_account = types.KeyboardButton("Мой аккаунт")
-go_game = types.KeyboardButton("Начать поиск")
-go_offline = types.KeyboardButton("Играть с ботом")
-rules = types.KeyboardButton("Правила")
+my_account = types.KeyboardButton("Мой аккаунтℹ️")
+go_game = types.KeyboardButton("Начать поиск🔎")
+go_offline = types.KeyboardButton("Играть с ботом🤖")
+rules = types.KeyboardButton("Правила📖❓")
 main_menu_markup.add(my_account)
 main_menu_markup.add(go_game)
 main_menu_markup.add(go_offline)
@@ -29,8 +29,8 @@ main_menu_markup.add(rules)
 account_markup = types.ReplyKeyboardMarkup(resize_keyboard=True,
                                            row_width=2,
                                            one_time_keyboard=True)
-go_main = types.KeyboardButton("Главное меню")
-get_money = types.KeyboardButton("Получить бабки")
+go_main = types.KeyboardButton("Главное меню🔙")
+get_money = types.KeyboardButton("Получить монеты💰")
 account_markup.add(go_main)
 account_markup.add(get_money)
 
@@ -38,11 +38,11 @@ account_markup.add(get_money)
 bet_markup = types.ReplyKeyboardMarkup(resize_keyboard=True,
                                        row_width=2,
                                        one_time_keyboard=True)
-st_150 = types.KeyboardButton("150💲")
-st_300 = types.KeyboardButton("300💲")
-st_500 = types.KeyboardButton("500💲")
-st_1000 = types.KeyboardButton("1000💲")
-go_main = types.KeyboardButton("Главное меню")
+st_150 = types.KeyboardButton("150💰")
+st_300 = types.KeyboardButton("300💰")
+st_500 = types.KeyboardButton("500💰")
+st_1000 = types.KeyboardButton("1000💰")
+go_main = types.KeyboardButton("Главное меню🔙")
 bet_markup.add(st_150)
 bet_markup.add(st_300)
 bet_markup.add(st_500)
@@ -96,9 +96,9 @@ def account_stat(user, cur):
 
     message = f"""
 Ник: {nn}
-Количество игр: {games_num}
-Процент побед: {w_l}
-Баланс: {balance}
+Количество игр: {games_num}🃏
+Процент побед: {w_l}🏆
+Баланс: {balance}🪙
     """
     return message
 
@@ -354,7 +354,7 @@ def message_reply(message):
                     bot.send_message(message.chat.id, f'Подождите, пожалуйста. У соперника есть еще {30 - int(curr_time - game.last_action_time)} секунд, чтобы походить.',
                                         reply_markup=second_player_markup)
 
-    elif message.text == "Играть с ботом":
+    elif message.text == "Играть с ботом🤖":
         cur.execute(f"update users set game_id = 0 where telegram_uid = {message.chat.id}")
         db.commit()
         bot.send_message(message.chat.id, "Игра найдена", reply_markup=first_player_markup)
@@ -431,16 +431,16 @@ def message_reply(message):
             pass
 
 
-    elif message.text == 'Мой аккаунт':
+    elif message.text == 'Мой аккаунтℹ️':
         stat = account_stat(message.chat.id, cur)  # от юзера
         bot.send_message(message.chat.id, stat, reply_markup=account_markup)
 
-    elif message.text == 'Главное меню':
+    elif message.text == 'Главное меню🔙':
         bot.send_message(message.chat.id,
                          'Перехожу в главное меню',
                          reply_markup=main_menu_markup)
 
-    elif message.text == 'Получить бабки':
+    elif message.text == 'Получить монеты💰':
         cur.execute(
             f"select balance from users where telegram_uid = {message.chat.id}")
         bal = cur.fetchone()[0]
@@ -450,7 +450,7 @@ def message_reply(message):
             )
             db.commit()
             bot.send_message(message.chat.id,
-                             'Твой баланс пополнен на 300 коинов',
+                             'Твой баланс пополнен на 300 монет💰',
                              reply_markup=account_markup)
         else:
             bot.send_message(
@@ -458,26 +458,26 @@ def message_reply(message):
                 'Упс... Твой баланс не может быть пополнен, так как он выше 149 монет ☹️',
                 reply_markup=account_markup)
 
-    elif message.text == 'Правила':
+    elif message.text == 'Правила📖❓':
         bot.send_message(message.chat.id, rules, reply_markup=main_menu_markup)
 
-    elif message.text == 'Начать поиск':
+    elif message.text == 'Начать поиск🔎':
         is_searching[message.chat.id] = 1
-        bot.send_message(message.chat.id, 'Выбери ставку', reply_markup=bet_markup)
+        bot.send_message(message.chat.id, 'Выбери ставку🎰', reply_markup=bet_markup)
 
-    elif message.text == '150💲' and is_searching.get(message.chat.id,
+    elif message.text == '150💰' and is_searching.get(message.chat.id,
                                                      False) == 1:
         game_finder(150)
 
-    elif message.text == '300💲' and is_searching.get(message.chat.id,
+    elif message.text == '300💰' and is_searching.get(message.chat.id,
                                                      False) == 1:
         game_finder(300)
 
-    elif message.text == '500💲' and is_searching.get(message.chat.id,
+    elif message.text == '500💰' and is_searching.get(message.chat.id,
                                                      False) == 1:
         game_finder(500)
 
-    elif message.text == '1000💲' and is_searching.get(message.chat.id,
+    elif message.text == '1000💰' and is_searching.get(message.chat.id,
                                                       False) == 1:
         game_finder(1000)
 
@@ -496,7 +496,7 @@ def message_reply(message):
     else:
         bot.send_message(
             message.chat.id,
-            'Упс, такая команда не найдена. Если хочешь поиграть, тапни по кнопочке "Начать поиск"',
+            'Упс, такая команда не найдена. Если хочешь поиграть, тапни по кнопочке "Начать поиск🔎"',
             reply_markup=main_menu_markup)
 
     db.close()
