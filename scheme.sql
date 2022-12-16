@@ -10,7 +10,7 @@
 --     wins_num int not null
 -- );
 
--- update users set chat_state='-1' where balance=100000000850;
+delete from users where nickname='kefir';
 -- update users set nickname='ked2006' where nickname='Доманин'
 
 

@@ -271,7 +271,7 @@ def message_reply(message):
             reply_markup=go_start)
 
     elif state == 0:
-        nn = message.text[:15]
+        nn = message.text[:min(len(message.text), 15)]
         enter_nick[message.chat.id] = 1  # легаси
         registered_users.append(message.chat.id)  # легаси
         # добавляем игрока в бд
