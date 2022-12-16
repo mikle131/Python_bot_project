@@ -2,6 +2,7 @@ import datetime
 
 from game import Game
 import telebot
+import time
 from telebot import types
 import sqlite3
 from decimal import *
@@ -16,11 +17,13 @@ enter_nick = dict()  # легаси
 main_menu_markup = types.ReplyKeyboardMarkup(resize_keyboard=True,
                                              row_width=2,
                                              one_time_keyboard=True)
-my_account = types.KeyboardButton("Мой аккаунтℹ️")
-go_game = types.KeyboardButton("Начать поиск🔎")
-go_offline = types.KeyboardButton("Играть с ботом🤖")
-rules = types.KeyboardButton("Правила📖❓")
+my_account = types.KeyboardButton("ℹ Мой аккаунт️")
+get_lb = types.KeyboardButton("🏆 Лучшие игроки")
+go_game = types.KeyboardButton("🔎 Начать поиск")
+go_offline = types.KeyboardButton("🤖 Играть с ботом")
+rules = types.KeyboardButton("📖❓ Правила")
 main_menu_markup.add(my_account)
+main_menu_markup.add(get_lb)
 main_menu_markup.add(go_game)
 main_menu_markup.add(go_offline)
 main_menu_markup.add(rules)
@@ -29,8 +32,8 @@ main_menu_markup.add(rules)
 account_markup = types.ReplyKeyboardMarkup(resize_keyboard=True,
                                            row_width=2,
                                            one_time_keyboard=True)
-go_main = types.KeyboardButton("Главное меню🔙")
-get_money = types.KeyboardButton("Получить монеты💰")
+go_main = types.KeyboardButton("🔙 Главное меню")
+get_money = types.KeyboardButton("💰 Получить монеты")
 account_markup.add(go_main)
 account_markup.add(get_money)
 
@@ -41,12 +44,12 @@ bet_markup = types.ReplyKeyboardMarkup(resize_keyboard=True,
 st_150 = types.KeyboardButton("150💰")
 st_300 = types.KeyboardButton("300💰")
 st_500 = types.KeyboardButton("500💰")
-st_1000 = types.KeyboardButton("1000💰")
-go_main = types.KeyboardButton("Главное меню🔙")
+# st_1000 = types.KeyboardButton("1000💰")
+go_main = types.KeyboardButton("🔙 Главное меню")
 bet_markup.add(st_150)
 bet_markup.add(st_300)
 bet_markup.add(st_500)
-bet_markup.add(st_1000)
+# bet_markup.add(st_1000)
 bet_markup.add(go_main)
 
 # кнопки для ходящего игрока
@@ -95,15 +98,38 @@ def account_stat(user, cur):
         w_l = str(Decimal(wins_num) / Decimal(games_num) * 100) + '%'
 
     message = f"""
-Ник: {nn}
-Количество игр: {games_num}🃏
-Процент побед: {w_l}🏆
-Баланс: {balance}🪙
+🦜 Ник: {nn}\n
+🃏 Количество игр: {games_num}\n
+🏆 Процент побед: {w_l}\n
+🪙 Баланс: {balance}
     """
     return message
 
+def get_top():
+    db = connect_db()
+    cur = db.cursor()
+    cur.execute('select * from users')
+    data = cur.fetchall()
+    sorted_data = sorted(list(map(lambda x : dict(x), data)), key=lambda y : y['balance'], reverse=True)
+    msg = f"""
+🏆 *ТОП-5 богачей:*\n
+🥇 *{sorted_data[0]['nickname']}*: {sorted_data[0]['balance']} 💵\n
+🥈 *{sorted_data[1]['nickname']}*: {sorted_data[1]['balance']} 💵\n
+🥉 *{sorted_data[2]['nickname']}*: {sorted_data[2]['balance']} 💵\n
+4⃣ *{sorted_data[3]['nickname']}*: {sorted_data[3]['balance']} 💵\n
+5⃣ *{sorted_data[4]['nickname']}*: {sorted_data[4]['balance']} 💵
+    """
+    db.close()
+    return msg
 
-rules = '''Текст-заглушка'''
+rules = '''*Правила*🗞:
+Вначале карты набирает первый игрок, затем ход переходит ко второму. 
+Цель игры — набрать 21 очко или близкую к этому сумму. Если игрок набирает сумму очков, превышающую 21, то его ставка проигрывает.⚠️
+В противном случае побеждает тот игрок, который был максимально близок к 21.
+
+🔴В игре с ботом🤖 вы не можете получить монеты.🔴
+
+🏆Соревнуетесь с другими игроками и зарабатывайте💵, чтобы найти себя в таблице лидеров 🏆'''
 
 
 def connect_db():
@@ -237,7 +263,7 @@ def message_reply(message):
         if num < 1:
             cur.execute(
                 "insert into users (telegram_uid, nickname, balance, chat_state, game_id, games_num, wins_num) values (?, ?, ?, ?, ?, ?, ?)",
-                (f'{message.chat.id}', f'', 0, -1, -1, 0, 0))
+                (f'{message.chat.id}', f'', 1500, -1, -1, 0, 0))
             db.commit()
         bot.send_message(
             message.chat.id,
@@ -245,7 +271,7 @@ def message_reply(message):
             reply_markup=go_start)
 
     elif state == 0:
-        nn = message.text
+        nn = message.text[:15]
         enter_nick[message.chat.id] = 1  # легаси
         registered_users.append(message.chat.id)  # легаси
         # добавляем игрока в бд
@@ -354,7 +380,7 @@ def message_reply(message):
                     bot.send_message(message.chat.id, f'Подождите, пожалуйста. У соперника есть еще {30 - int(curr_time - game.last_action_time)} секунд, чтобы походить.',
                                         reply_markup=second_player_markup)
 
-    elif message.text == "Играть с ботом🤖":
+    elif message.text == "🤖 Играть с ботом":
         cur.execute(f"update users set game_id = 0 where telegram_uid = {message.chat.id}")
         db.commit()
         bot.send_message(message.chat.id, "Игра найдена", reply_markup=first_player_markup)
@@ -406,7 +432,7 @@ def message_reply(message):
                         bot.send_message(message.chat.id, "Противник перебрал. Вы победили!", reply_markup=main_menu_markup)
                         cur.execute(f"update users set game_id = -1 where telegram_uid = {message.chat.id}")
                         db.commit()
-                    elif game.players[0]['points'] < 16:
+                    elif game.players[0]['points'] < game.players[game.not_turn_id]['points']:
                         time.sleep(0.9)
                 if not overflow:
                     winner = game.not_turn_id
@@ -431,16 +457,20 @@ def message_reply(message):
             pass
 
 
-    elif message.text == 'Мой аккаунтℹ️':
+    elif message.text == 'ℹ Мой аккаунт️':
         stat = account_stat(message.chat.id, cur)  # от юзера
         bot.send_message(message.chat.id, stat, reply_markup=account_markup)
 
-    elif message.text == 'Главное меню🔙':
+    elif message.text == "🏆 Лучшие игроки":
+        msg = get_top()
+        bot.send_message(message.chat.id, msg, reply_markup=main_menu_markup, parse_mode='Markdown')
+
+    elif message.text == '🔙 Главное меню':
         bot.send_message(message.chat.id,
                          'Перехожу в главное меню',
                          reply_markup=main_menu_markup)
 
-    elif message.text == 'Получить монеты💰':
+    elif message.text == '💰 Получить монеты':
         cur.execute(
             f"select balance from users where telegram_uid = {message.chat.id}")
         bal = cur.fetchone()[0]
@@ -458,12 +488,12 @@ def message_reply(message):
                 'Упс... Твой баланс не может быть пополнен, так как он выше 149 монет ☹️',
                 reply_markup=account_markup)
 
-    elif message.text == 'Правила📖❓':
-        bot.send_message(message.chat.id, rules, reply_markup=main_menu_markup)
+    elif message.text == '📖❓ Правила':
+        bot.send_message(message.chat.id, rules, reply_markup=main_menu_markup, parse_mode="Markdown")
 
-    elif message.text == 'Начать поиск🔎':
+    elif message.text == '🔎 Начать поиск':
         is_searching[message.chat.id] = 1
-        bot.send_message(message.chat.id, 'Выбери ставку🎰', reply_markup=bet_markup)
+        bot.send_message(message.chat.id, '🎰 Выбери ставку', reply_markup=bet_markup)
 
     elif message.text == '150💰' and is_searching.get(message.chat.id,
                                                      False) == 1:
@@ -477,9 +507,9 @@ def message_reply(message):
                                                      False) == 1:
         game_finder(500)
 
-    elif message.text == '1000💰' and is_searching.get(message.chat.id,
-                                                      False) == 1:
-        game_finder(1000)
+    # elif message.text == '1000💰' and is_searching.get(message.chat.id,
+    #                                                   False) == 1:
+    #     game_finder(1000)
 
     elif message.text == 'Отменить поиск':
         if is_searching.get(message.chat.id, False):
@@ -496,7 +526,7 @@ def message_reply(message):
     else:
         bot.send_message(
             message.chat.id,
-            'Упс, такая команда не найдена. Если хочешь поиграть, тапни по кнопочке "Начать поиск🔎"',
+            'Упс, такая команда не найдена. Если хочешь поиграть, тапни по кнопочке "🔎 Начать поиск"',
             reply_markup=main_menu_markup)
 
     db.close()
