@@ -110,14 +110,16 @@ def get_top():
     cur = db.cursor()
     cur.execute('select * from users')
     data = cur.fetchall()
+    cur.execute('select count(*) from users')
+    num = cur.fetchone()[0]
     sorted_data = sorted(list(map(lambda x : dict(x), data)), key=lambda y : y['balance'], reverse=True)
     msg = f"""
 🏆 *ТОП-5 богачей:*\n
-🥇 *{sorted_data[0]['nickname']}*: {sorted_data[0]['balance']} 💵\n
-🥈 *{sorted_data[1]['nickname']}*: {sorted_data[1]['balance']} 💵\n
-🥉 *{sorted_data[2]['nickname']}*: {sorted_data[2]['balance']} 💵\n
-4⃣ *{sorted_data[3]['nickname']}*: {sorted_data[3]['balance']} 💵\n
-5⃣ *{sorted_data[4]['nickname']}*: {sorted_data[4]['balance']} 💵
+🥇 *{sorted_data[min(num-1, 0)]['nickname']}*: {sorted_data[min(num-1, 0)]['balance']} 💵\n
+🥈 *{sorted_data[min(num-1, 1)]['nickname']}*: {sorted_data[min(num-1, 1)]['balance']} 💵\n
+🥉 *{sorted_data[min(num-1, 2)]['nickname']}*: {sorted_data[min(num-1, 2)]['balance']} 💵\n
+4⃣ *{sorted_data[min(num-1, 3)]['nickname']}*: {sorted_data[min(num-1, 3)]['balance']} 💵\n
+5⃣ *{sorted_data[min(num-1, 4)]['nickname']}*: {sorted_data[min(num-1, 4)]['balance']} 💵
     """
     db.close()
     return msg
