@@ -110,9 +110,9 @@ def get_top():
     cur = db.cursor()
     cur.execute('select * from users')
     data = cur.fetchall()
-    cur.execute('select count(*) from users')
-    num = cur.fetchone()[0]
     sorted_data = sorted(list(map(lambda x : dict(x), data)), key=lambda y : y['balance'], reverse=True)
+    sorted_data = [el for el in sorted_data if el['nickname'] != '']
+    num = len(sorted_data)
     msg = f"""
 🏆 *ТОП-5 богачей:*\n
 🥇 *{sorted_data[min(num-1, 0)]['nickname']}*: {sorted_data[min(num-1, 0)]['balance']} 💵\n
