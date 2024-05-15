@@ -9,9 +9,3 @@ create table users (
     games_num int not null,
     wins_num int not null
 );
-
--- delete from users where nickname='kefir';
--- update users set nickname='ked2006' where nickname='Доманин'
-
-
--- update users set balance = 100000000000 where nickname='kefir'

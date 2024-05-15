@@ -3,4 +3,4 @@
 Студенты:\
 Вадим Денисов\
 Михаил Доманин\
-P.S. Сам адрес бота, дабы было удобнее чекать): https://t.me/blackjack_game_free_bot
+P.S. Сам адрес бота: https://t.me/blackjack_game_free_bot
